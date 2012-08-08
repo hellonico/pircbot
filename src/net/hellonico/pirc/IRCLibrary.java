@@ -27,7 +27,6 @@
 
 package net.hellonico.pirc;
 
-
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -39,76 +38,101 @@ import org.jibble.pircbot.PircBot;
 import processing.core.PApplet;
 
 public class IRCLibrary extends PircBot {
-	
+
 	PApplet myParent;
 	HashMap commands;
-	
+	private String currentTopic;
+
 	public final static String VERSION = "##library.prettyVersion##";
-	
+
 	public IRCLibrary(PApplet theParent) {
 		this(theParent, "profile");
 	}
+
 	public IRCLibrary(PApplet theParent, String profile) {
 		myParent = theParent;
 		commands = new HashMap();
-	
+
 		try {
 			Class klass = Class.forName("net.hellonico.potato.Potato");
 			Constructor c = klass.getConstructor(PApplet.class);
 			Object potato = c.newInstance(theParent);
 			Method m = klass.getMethod("getSettings", String.class);
-			HashMap settings = (HashMap) m.invoke(potato, "irc_"+profile);
-			
+			HashMap settings = (HashMap) m.invoke(potato, "irc_" + profile);
+
 			String server = (String) settings.get("server");
 			int port = Integer.parseInt((String) settings.get("port"));
 			String channel = (String) settings.get("channel");
-			
+
 			this.connect(server, port);
 			this.joinChannel(channel);
-			
+
 		} catch (Exception e) {
-			throw new RuntimeException("This is carrot day."+e.getMessage());
+			throw new RuntimeException("This is carrot day." + e.getMessage());
 		}
 	}
-	
+
 	public void register(String keyword) {
 		Method fancyEventMethod;
-		String methodName = "on"+keyword.substring(0,1).toUpperCase()+keyword.substring(1);
+		String methodName = "on" + keyword.substring(0, 1).toUpperCase()
+				+ keyword.substring(1);
 		try {
-			fancyEventMethod = myParent.getClass().getMethod(methodName, new Class[] { String.class });
+			fancyEventMethod = myParent.getClass().getMethod(methodName,
+					new Class[] { String.class });
 			commands.put(keyword, fancyEventMethod);
-			System.out.println("Registered callback:"+methodName);
+			System.out.println("Registered callback:" + methodName);
 		} catch (Exception e) {
-			System.out.println("Register Callback has no method in the main applet:"+methodName);
+			System.out
+					.println("Register Callback has no method in the main applet:"
+							+ methodName);
 		}
 	}
+
 	public void unregister(String keyword) {
 		commands.remove(keyword);
 	}
+
+	public void onTopic(String channel, String topic, String setBy, long date,
+			boolean changed) {
+		this.currentTopic = topic;
+	}
 	
-	public void onMessage(String channel, String sender, String login, String hostname, String message) {
+	public void send(String message) {
+		this.sendMessage(this.getChannels()[0], message); 
+	}
+
+	public void onMessage(String channel, String sender, String login,
+			String hostname, String message) {
 		Iterator iter = commands.keySet().iterator();
 		int blankIndex = message.indexOf(" ");
-		String command = blankIndex < 0 ? message.substring(1) : message.substring(1, blankIndex );
-		String passMessage = blankIndex > 0 && blankIndex + 1 < message.length() ? message.substring(message.indexOf(" ")+1) : "";
-		System.out.println("Looking for command:"+command);
-		while(iter.hasNext()) {
+		String command, passMessage;
+		if (message.startsWith("!")) {
+			command = blankIndex < 0 ? message.substring(1) : message
+					.substring(1, blankIndex);
+			passMessage = blankIndex > 0 && blankIndex + 1 < message.length() ? message
+					.substring(message.indexOf(" ") + 1) : "";
+		} else {
+			command = this.currentTopic;
+			passMessage = message;
+		}
+
+		System.out.println("Looking for command:" + command);
+		while (iter.hasNext()) {
 			String next = (String) iter.next();
-			if(command.equalsIgnoreCase(next)) {
+			if (command.equalsIgnoreCase(next)) {
 				Method m = (Method) commands.get(next);
 				try {
-					m.invoke(myParent, new Object[] { message.substring(message.indexOf(" ")+1) });
+					m.invoke(myParent, new Object[] { passMessage });
 				} catch (Exception e) {
-					System.out.println("Error while executing callback:"+e.getMessage());
+					System.out.println("Error while executing callback:"
+							+ e.getMessage());
 				}
 			}
 		}
 	}
-	
+
 	public static String version() {
 		return VERSION;
 	}
-	
 
 }
-
