@@ -8,7 +8,7 @@ IRCLibrary irc;
 ColorLibrary k;
 
 void setup() {
-  size(400,400);
+  size(1280,1024);
   smooth();
   background(0);
   
@@ -16,7 +16,11 @@ void setup() {
   irc = new IRCLibrary(this);
   irc.register("kuler");
   irc.register("clean");
-    
+  irc.register("echo");
+  irc.register("text");
+  
+  PFont f = loadFont("hira.vlw");
+  textFont(f, 120); 
   text("connected:"+irc.isConnected(), 40, 200);
 }
 
@@ -25,19 +29,22 @@ void draw() {
 }
 
 void mousePressed() {
-  irc.sendMessage(irc.getChannels()[0], "Hello@"+mouseX+":"+mouseY);  
+  irc.send("Hello@"+mouseX+":"+mouseY);  
 }
 
-/*
-	call back inherited from the register("clean")
-*/
+void onText(String message) {
+  background(0);
+  text(message, 100, 200); 
+}
+
+void onEcho(String message) {
+  irc.send(message);  
+}
+
 void onClean(String message) {
   background(0);  
 }
 
-/*
-	call back inherited from the register("kuler")
-*/
 void onKuler(String message) {
     KulerTheme[] kt = (KulerTheme[]) k.search(message);
     
